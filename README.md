@@ -248,3 +248,9 @@ service -- unit file in `deploy/ztrmnl.service` (expects the repo at
 /opt/ztrmnl, a `ztrmnl` user, and `pnpm install --frozen-lockfile && pnpm build`
 having produced `dist/`). Deploy = git pull, pnpm install --frozen-lockfile,
 pnpm build, systemctl restart ztrmnl.
+- **Light admin UI**: a small web page off the main routes -- connected
+  devices (last_seen/battery/RSSI/fw from the registry) and a screen
+  gallery. The gallery is nearly free thanks to on-demand rendering: it
+  can invoke any registered screen's render() live rather than showing
+  stale caches. Eventually playlist management; until then playlist/
+  screen assignment stays a config-file concern.
