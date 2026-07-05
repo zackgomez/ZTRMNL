@@ -15,9 +15,10 @@ export const STATUS_BAR_HEIGHT = 32;
 
 // Bar background. The device's 2-bit quantizer buckets 8-bit gray as
 // <43 -> black, <128 -> dark-gray(85), <213 -> light-gray(170), else white.
-// #ccc (204) and #aaa (170) both land in the <213 bucket -> light-gray(170).
+// White bg: the panel only has 4 tones (0/85/170/255) and 170 reads darker
+// on glass than expected -- so white bar, black bottom border for separation.
 // #ddd/#eee (221/238) would snap to white -- don't use those here.
-const BAR_BG = "#ccc";
+const BAR_BG = "#fff";
 
 // Rough LiPo discharge curve endpoints used only when the device sends a
 // raw voltage but no pre-computed percentage.
@@ -60,7 +61,7 @@ function wifiBars(filled: number): string {
   const bars = heights
     .map((h, i) => {
       const margin = i < heights.length - 1 ? "margin-right:2px;" : "";
-      const color = i < filled ? "#000" : "#fff";
+      const color = i < filled ? "#000" : "#ccc"; // empty bars: light-gray, visible on white
       return `<div style="display:flex;width:4px;height:${h}px;background:${color};${margin}"></div>`;
     })
     .join("");
