@@ -90,16 +90,25 @@ export function registerDisplayRoute(app: FastifyInstance): void {
 
     // Token check per config.authMode. Terminus itself never validates the
     // Access-Token, so "off" mirrors upstream; "warn"/"enforce" are ours.
-    const token = request.headers["access-token"];
+    // TOFU: until a device's stored api_key has been confirmed by a poll,
+    // adopt whatever non-empty token the device actually presents -- covers
+    // migration from Terminus/cloud, where the device holds a token we
+    // never issued (Terminus BYOS mints none at all).
+    const rawToken = request.headers["access-token"];
+    const presented = typeof rawToken === "string" && rawToken.length > 0 ? rawToken : null;
     if (config.authMode !== "off") {
-      const ok = token === device.api_key;
-      if (!ok) {
+      if (presented === device.api_key) {
+        if (!device.token_confirmed) store.confirmToken(device.mac);
+      } else if (presented && !device.token_confirmed) {
+        store.adoptToken(device.mac, presented);
+        request.log.info({ mac: device.mac }, "adopted device-presented token (TOFU)");
+      } else {
         if (config.authMode === "enforce") {
           reply.code(401);
           return { error: "invalid or missing Access-Token" };
         }
         request.log.warn(
-          { mac: device.mac, hasToken: typeof token === "string" && token.length > 0 },
+          { mac: device.mac, hasToken: presented !== null },
           "Access-Token mismatch/absent (serving anyway; authMode=warn)",
         );
       }
@@ -129,7 +138,9 @@ export function registerDisplayRoute(app: FastifyInstance): void {
       // Per-device screen assignment with global fallback.
       const ctx = buildRenderContext(device, request.log);
       filename = await renderAndStore(resolveScreen(device.screen), ctx);
-      request.log.info({ ms: Math.round(performance.now() - t0) }, "render ok");
+      // filename included so log analysis can join this line to the device's
+      // subsequent GET /uploads/<filename> (pipelining-savings evaluation).
+      request.log.info({ ms: Math.round(performance.now() - t0), filename }, "render ok");
     } catch (err) {
       request.log.error(err, "render failed, falling back to last-good image");
       filename = lastGoodFilename;

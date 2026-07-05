@@ -16,6 +16,8 @@ export interface Device {
   fw_version: string | null;
   created_at: string;
   last_seen: string | null;
+  /** 0 until the device has presented this api_key on a poll (or TOFU-adopted its own). */
+  token_confirmed: 0 | 1;
 }
 
 /** Fields recordable from a poll's telemetry via touch(). */
@@ -31,6 +33,11 @@ export interface DeviceStore {
   findByMac(mac: string): Device | undefined;
   findOrCreate(mac: string): { device: Device; created: boolean };
   touch(mac: string, fields: TouchFields): void;
+  /** Mark the stored api_key as confirmed (device presented it on a poll). */
+  confirmToken(mac: string): void;
+  /** TOFU: replace the never-confirmed api_key with the token the device
+   *  actually presented, and mark it confirmed. */
+  adoptToken(mac: string, token: string): void;
 }
 
 /** MACs are the primary key; normalize to uppercase on the way in. */
@@ -72,9 +79,17 @@ export class SqliteDeviceStore implements DeviceStore {
         height INTEGER,
         fw_version TEXT,
         created_at TEXT NOT NULL,
-        last_seen TEXT
+        last_seen TEXT,
+        token_confirmed INTEGER NOT NULL DEFAULT 0
       )
     `);
+    // Migrate pre-TOFU databases in place (ALTER is a no-op error if the
+    // column already exists -- cheaper than a migrations framework at this scale).
+    try {
+      this.db.exec("ALTER TABLE devices ADD COLUMN token_confirmed INTEGER NOT NULL DEFAULT 0");
+    } catch {
+      /* column already exists */
+    }
   }
 
   findByMac(mac: string): Device | undefined {
@@ -99,14 +114,27 @@ export class SqliteDeviceStore implements DeviceStore {
       fw_version: null,
       created_at: new Date().toISOString(),
       last_seen: null,
+      token_confirmed: 0,
     };
     this.db
       .prepare(
-        `INSERT INTO devices (mac, api_key, friendly_id, screen, model, width, height, fw_version, created_at, last_seen)
-         VALUES (@mac, @api_key, @friendly_id, @screen, @model, @width, @height, @fw_version, @created_at, @last_seen)`,
+        `INSERT INTO devices (mac, api_key, friendly_id, screen, model, width, height, fw_version, created_at, last_seen, token_confirmed)
+         VALUES (@mac, @api_key, @friendly_id, @screen, @model, @width, @height, @fw_version, @created_at, @last_seen, @token_confirmed)`,
       )
       .run(device);
     return { device, created: true };
+  }
+
+  confirmToken(mac: string): void {
+    this.db
+      .prepare("UPDATE devices SET token_confirmed = 1 WHERE mac = ?")
+      .run(normalizeMac(mac));
+  }
+
+  adoptToken(mac: string, token: string): void {
+    this.db
+      .prepare("UPDATE devices SET api_key = ?, token_confirmed = 1 WHERE mac = ? AND token_confirmed = 0")
+      .run(token, normalizeMac(mac));
   }
 
   touch(mac: string, fields: TouchFields): void {

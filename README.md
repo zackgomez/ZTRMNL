@@ -78,6 +78,14 @@ token is a soft secret. `"warn"` gives you the audit trail (mismatches show
 up in the logs) without risking a paired device getting locked out by a
 stale token; `"enforce"` is available if you want hard rejection.
 
+**TOFU adoption**: a device's stored `api_key` starts *unconfirmed*. Until
+confirmed, `/api/display` adopts whatever non-empty `Access-Token` the device
+actually presents (replacing our minted key, marking it confirmed) instead of
+warning. This makes migration self-healing: a device coming over from
+Terminus/cloud holds a token we never issued (Terminus BYOS mints none at
+all), and its first poll here adopts it. A matching token also confirms; once
+confirmed, mismatches warn/enforce per `authMode`.
+
 Every `/api/display` poll also `store.touch()`es the device: `last_seen`
 plus the latest `fw_version`/`width`/`height`/`model` from the telemetry
 headers (fire-and-forget -- never blocks or fails the poll).
