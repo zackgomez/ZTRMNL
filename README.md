@@ -254,3 +254,7 @@ pnpm build, systemctl restart ztrmnl.
   can invoke any registered screen's render() live rather than showing
   stale caches. Eventually playlist management; until then playlist/
   screen assignment stays a config-file concern.
+- **Shader screen**: a Screen that raymarches/procedurally generates its
+  PNG (fragment-shader-style, CPU or GPU) instead of going through HTML --
+  the base Screen contract already permits it (render() -> Buffer).
+  Dithered 4-gray procedural art on e-ink could look great.
