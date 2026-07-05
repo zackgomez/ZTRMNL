@@ -156,6 +156,20 @@ they're applied):
    Use literal UTF-8 characters (`·`, `●`, `○`) in the template string
    instead.
 
+## Admin UI
+
+A second, separate Fastify instance (`src/admin.ts`, started alongside the
+device app in `src/server.ts`) serves a read-only status page: service
+info (uptime, node/package version, render engine), the effective config
+(`influxToken` and other secret-shaped fields shown as `set`/`unset` only,
+never the value), the device registry, registered screens, and the current
+last-good image. It listens on `adminPort` (default **2401**) -- a distinct
+port from the device app's `port` (2400), so the admin UI is structurally
+unreachable from the device-facing listener and vice versa. In production
+it's fronted by Caddy, reverse-proxying `https://ztrmnl.zoumez.net` to
+`adminPort`; the admin listener itself stays plain HTTP internally, and the
+device port carries no admin surface at all.
+
 ## Dev quickstart
 
 ```bash

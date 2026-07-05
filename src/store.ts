@@ -38,6 +38,8 @@ export interface DeviceStore {
   /** TOFU: replace the never-confirmed api_key with the token the device
    *  actually presented, and mark it confirmed. */
   adoptToken(mac: string, token: string): void;
+  /** All registered devices, most-recently-created first. Admin UI only. */
+  listDevices(): Device[];
 }
 
 /** MACs are the primary key; normalize to uppercase on the way in. */
@@ -135,6 +137,10 @@ export class SqliteDeviceStore implements DeviceStore {
     this.db
       .prepare("UPDATE devices SET api_key = ?, token_confirmed = 1 WHERE mac = ? AND token_confirmed = 0")
       .run(token, normalizeMac(mac));
+  }
+
+  listDevices(): Device[] {
+    return this.db.prepare("SELECT * FROM devices ORDER BY created_at DESC").all() as Device[];
   }
 
   touch(mac: string, fields: TouchFields): void {

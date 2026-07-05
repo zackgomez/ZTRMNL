@@ -1,30 +1,15 @@
 import type { FastifyInstance } from "fastify";
 import { createHash } from "node:crypto";
-import { mkdirSync, existsSync, writeFileSync, readdirSync, statSync } from "node:fs";
+import { existsSync, writeFileSync } from "node:fs";
 import path from "node:path";
-import { config, dataPath } from "../config.js";
+import { config } from "../config.js";
 import { resolveScreen, type Screen, type RenderContext } from "../screens/index.js";
 import { renderScreen, minify, PANEL_WIDTH, PANEL_HEIGHT } from "../render.js";
 import { parseTelemetry, recordTelemetry } from "../telemetry.js";
 import { store, type Device } from "../store.js";
+import { uploadsDir, getLastGoodFilename, setLastGoodFilename } from "../state.js";
 
 const RENDER_TIMEOUT_MS = 3000;
-const uploadsDir = dataPath("uploads");
-mkdirSync(uploadsDir, { recursive: true });
-
-// Remember the last successfully rendered image so a render failure can
-// still serve *something* (the device must never see a blank/broken poll).
-let lastGoodFilename: string | null = null;
-seedLastGoodFromDisk();
-
-function seedLastGoodFromDisk(): void {
-  if (!existsSync(uploadsDir)) return;
-  const files = readdirSync(uploadsDir).filter((f) => f.endsWith(".png"));
-  if (files.length === 0) return;
-  // Most-recently-written file wins.
-  files.sort((a, b) => statSync(path.join(uploadsDir, b)).mtimeMs - statSync(path.join(uploadsDir, a)).mtimeMs);
-  lastGoodFilename = files[0];
-}
 
 function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
   return new Promise((resolve, reject) => {
@@ -68,7 +53,7 @@ async function renderAndStore(screen: Screen, ctx: RenderContext): Promise<strin
   if (!existsSync(filePath)) {
     writeFileSync(filePath, png);
   }
-  lastGoodFilename = filename;
+  setLastGoodFilename(filename);
   return filename;
 }
 
@@ -143,7 +128,7 @@ export function registerDisplayRoute(app: FastifyInstance): void {
       request.log.info({ ms: Math.round(performance.now() - t0), filename }, "render ok");
     } catch (err) {
       request.log.error(err, "render failed, falling back to last-good image");
-      filename = lastGoodFilename;
+      filename = getLastGoodFilename();
     }
 
     if (!filename) {

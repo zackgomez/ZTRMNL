@@ -1,5 +1,6 @@
 {
   "port": 2400,
+  "adminPort": 2401,
   "baseUrl": "http://localhost:2400",
   "refreshRate": 900,
   "deviceMac": "94:A9:90:8F:48:D4",

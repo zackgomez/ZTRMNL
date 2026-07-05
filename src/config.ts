@@ -8,6 +8,10 @@ const repoRoot = path.resolve(__dirname, "..");
 export interface Config {
   /** Port ZTRMNL listens on. Production Terminus owns 2300 — do NOT collide. */
   port: number;
+  /** Port the admin UI listens on -- a SEPARATE Fastify instance, never
+   * reachable on `port` and vice versa. Fronted by Caddy (TLS/hostname
+   * routing) at https://ztrmnl.zoumez.net; this port itself stays plain HTTP. */
+  adminPort: number;
   /** Absolute base URL used to build image_url etc. */
   baseUrl: string;
   /** Seconds between device polls (returned as refresh_rate). */
@@ -49,6 +53,7 @@ export interface Config {
 
 export const defaultConfig: Config = {
   port: 2400,
+  adminPort: 2401,
   baseUrl: "http://localhost:2400",
   refreshRate: 900,
   deviceMac: "94:A9:90:8F:48:D4",
