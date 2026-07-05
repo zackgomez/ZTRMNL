@@ -22,6 +22,10 @@ export interface Config {
   apiKey: string;
   /** friendly_id returned from /api/setup. */
   friendlyId: string;
+  /** Human-readable wifi network name shown in the status bar's wifi
+   * cluster. Empty string (the default) falls back to the band reported by
+   * telemetry ("2.4G"/"5G") when present, else shows nothing. */
+  wifiName: string;
   /** Influx base URL (e.g. http://192.168.1.49:8086) for the nas screen's
    * direct Flux queries. Empty string disables it (falls back to collectorUrl). */
   influxUrl: string;
@@ -59,6 +63,7 @@ export const defaultConfig: Config = {
   deviceMac: "94:A9:90:8F:48:D4",
   apiKey: "ztrmnl-dev-key",
   friendlyId: "ZTRMNL",
+  wifiName: "",
   influxUrl: "",
   influxOrg: "",
   influxToken: "",

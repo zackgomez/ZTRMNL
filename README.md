@@ -130,15 +130,29 @@ export const myScreen = htmlScreen({
 
 ### Status bar chrome
 
-`src/screens/chrome.ts` exports `statusBar(ctx)`, a slim (28px) on-glass bar
-that screens prepend to their markup: friendly name + MAC on the left,
-`bat <NN>% · <RSSI>dBm · every <Xm>` on the right. Because renders happen
-on demand inside the poll itself, its data comes straight from `ctx.telemetry`
--- the headers of the poll currently being served, not a stale sqlite
-snapshot -- so the battery reading is always as fresh as possible. `nas.ts`
-is the reference integration: the outer container becomes a flex column of
-`[statusBar(ctx), content]`, with the content wrapper's height reduced by
-the bar's 28px.
+`src/screens/chrome.ts` exports `statusBar(ctx)`, a slim (32px,
+`STATUS_BAR_HEIGHT`) on-glass bar that screens prepend to their markup:
+friendly name + MAC on the left; on the right, in order, `every <Xm>` ·
+wifi · battery (battery rightmost). The bar's background is `#ccc` --
+chosen so the device's 2-bit quantizer (thresholds `<43`→black,
+`<128`→dark-gray(85), `<213`→light-gray(170), else white) buckets it to
+light-gray rather than snapping to white (`#ddd`/`#eee` would). Wifi is a
+drawn 4-bar signal icon (filled bars `#000`, empty bars `#fff` for contrast
+against the grey background) sized off RSSI (`≥-55`→4 bars, `≥-65`→3,
+`≥-75`→2, else 1; no RSSI → all empty), followed by a network label
+(`config.wifiName` when set, else the telemetry-reported band `2.4G`/`5G`
+when present, else nothing), plus a bold "weak" tag and a small drawn
+warning box when RSSI is present and below `-75`. Battery is a drawn
+24x14px icon (2px border + a fill div sized to the charge % + a small nub)
+followed by `NN%` text -- `?` with an empty icon when neither
+`percent-charged` nor a voltage reading is available. Because renders
+happen on demand inside the poll itself, all of this comes straight from
+`ctx.telemetry` -- the headers of the poll currently being served, not a
+stale sqlite snapshot -- so the readings are always as fresh as possible.
+`nas.ts` is the reference integration: the outer container becomes a flex
+column of `[statusBar(ctx), content]`, with the content wrapper's height
+reduced by `STATUS_BAR_HEIGHT` (imported from `chrome.ts`, not
+re-hardcoded).
 
 `htmlScreen` just calls `ctx.html(await renderHTML(ctx))` -- screen
 authors never call `minify()` or `renderScreen()` themselves. New

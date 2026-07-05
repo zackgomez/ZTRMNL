@@ -46,6 +46,7 @@ function buildRenderContext(
       batteryVoltage: telemetry.batteryVoltage,
       percentCharged: telemetry.percentCharged,
       rssi: telemetry.rssi,
+      wifiBand: telemetry.wifiBand,
     },
     refreshRate: config.refreshRate,
     html: (markup: string) => renderScreen(minify(markup), width, height),

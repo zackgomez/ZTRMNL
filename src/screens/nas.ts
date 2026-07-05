@@ -16,13 +16,9 @@ import path from "node:path";
 import { config } from "../config.js";
 import { FONT_FAMILY } from "../render.js";
 import { fetchNasMetrics, type NasData } from "../sources/nasMetrics.js";
-import { statusBar } from "./chrome.js";
+import { statusBar, STATUS_BAR_HEIGHT } from "./chrome.js";
 import { htmlScreen } from "./html.js";
 import type { RenderContext } from "./types.js";
-
-// Height reserved at the top of every screen for the on-glass status bar
-// (see chrome.ts) -- kept in sync with statusBar()'s own height:28px.
-const STATUS_BAR_HEIGHT = 28;
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const fixturePath = path.resolve(__dirname, "..", "..", "reference", "nas.json");

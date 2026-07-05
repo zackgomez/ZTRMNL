@@ -12,7 +12,12 @@ export interface RenderContext {
   /** Subset of this poll's parsed telemetry headers -- freshest possible
    * reading since renders happen on demand inside the poll itself. All
    * optional: a device may omit any of these headers. */
-  telemetry: { batteryVoltage?: number; percentCharged?: number; rssi?: number };
+  telemetry: {
+    batteryVoltage?: number;
+    percentCharged?: number;
+    rssi?: number;
+    wifiBand?: number;
+  };
   /** Seconds between polls, as this poll's response will report it (config.refreshRate). */
   refreshRate: number;
   /** Turn an HTML string into a finished 2-bit PNG buffer (minifies internally -- see render.ts). */
