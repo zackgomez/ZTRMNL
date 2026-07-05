@@ -1,0 +1,18 @@
+[Unit]
+Description=ZTRMNL on-demand BYOS server for TRMNL e-ink display
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=/opt/ztrmnl
+ExecStart=/usr/bin/node dist/server.js
+Restart=always
+RestartSec=3
+User=ztrmnl
+Group=ztrmnl
+Environment=NODE_ENV=production
+NoNewPrivileges=true
+
+[Install]
+WantedBy=multi-user.target

@@ -158,8 +158,8 @@ they're applied):
 ## Dev quickstart
 
 ```bash
-npm install
-npm run dev          # tsx watch src/server.ts, listens on :2400
+pnpm install
+pnpm dev          # tsx watch src/server.ts, listens on :2400
 
 # setup first -- registers the MAC and hands back its api_key (display
 # 404s on an unregistered MAC, mirroring the real device's pairing flow).
@@ -177,7 +177,7 @@ useful if the NAS collector (`192.168.1.43:8088`) is unreachable.
 (default `true`) control the device auth described under **Devices &
 auth**. The device registry is a SQLite file at `data/ztrmnl.db`.
 
-`npm run build && npm start` compiles to `dist/` and runs the compiled
+`pnpm build && pnpm start` compiles to `dist/` and runs the compiled
 server.
 
 ## Verification (2026-07-05, edhar, Node v24.14.0)
@@ -240,3 +240,11 @@ server.
   elements natively (satori-html is the adapter, not the core path), so
   this is additive. Doesn't have to be React proper -- any JSX runtime
   producing element trees satori accepts.
+
+## Deploy
+
+Production runs on a dedicated LXC (`ztrmnl.zoumez.net`) as a systemd
+service -- unit file in `deploy/ztrmnl.service` (expects the repo at
+/opt/ztrmnl, a `ztrmnl` user, and `pnpm install --frozen-lockfile && pnpm build`
+having produced `dist/`). Deploy = git pull, pnpm install --frozen-lockfile,
+pnpm build, systemctl restart ztrmnl.
