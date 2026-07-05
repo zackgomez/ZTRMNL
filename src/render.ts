@@ -23,20 +23,25 @@ interface SatoriFont {
 // Satori cannot parse variable fonts (its parser throws on any font with an
 // fvar table), so only static-weight TTFs work here. DejaVu Sans for now;
 // swap in static Inter weights if pixel-parity with the Terminus look is
-// ever wanted.
+// ever wanted. Vendored in assets/fonts (system font paths differ per
+// distro -- Arch: /usr/share/fonts/TTF, Debian: .../truetype/dejavu).
 export const FONT_FAMILY = "DejaVu Sans";
+
+// Resolves correctly from both src/ (tsx) and dist/ (compiled) -- ../assets
+// is the repo-root assets dir either way.
+const fontsDir = new URL("../assets/fonts/", import.meta.url);
 
 // Loaded once at module init -- reused across every render call.
 export const fonts: SatoriFont[] = [
   {
     name: "DejaVu Sans",
-    data: readFileSync("/usr/share/fonts/TTF/DejaVuSans.ttf"),
+    data: readFileSync(new URL("DejaVuSans.ttf", fontsDir)),
     weight: 400,
     style: "normal",
   },
   {
     name: "DejaVu Sans",
-    data: readFileSync("/usr/share/fonts/TTF/DejaVuSans-Bold.ttf"),
+    data: readFileSync(new URL("DejaVuSans-Bold.ttf", fontsDir)),
     weight: 700,
     style: "normal",
   },
