@@ -79,8 +79,15 @@ const configPath = path.join(repoRoot, "config.json");
 const examplePath = path.join(repoRoot, "config.example.json");
 
 // Always keep config.example.json in sync with the defaults so it's a
-// reliable template (it's checked into git; config.json is not).
-writeFileSync(examplePath, JSON.stringify(defaultConfig, null, 2) + "\n");
+// reliable template (it's checked into git; config.json is not). This is a
+// dev convenience, not a runtime requirement -- in a container where the app
+// dir isn't writable by the runtime user, ignore the failure rather than
+// crashing boot.
+try {
+  writeFileSync(examplePath, JSON.stringify(defaultConfig, null, 2) + "\n");
+} catch (err) {
+  console.warn(`Could not write ${examplePath}:`, err);
+}
 
 function loadUserConfig(): Partial<Config> {
   if (!existsSync(configPath)) return {};

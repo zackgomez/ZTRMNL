@@ -1,0 +1,11 @@
+node_modules
+dist
+data
+.git
+.gitignore
+
+# Real config holds a secret Influx token -- must never land in an image
+# layer. config.example.json (regenerated, no secrets) is fine to include.
+config.json
+
+*.log

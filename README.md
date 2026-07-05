@@ -252,6 +252,55 @@ gitignored local `config.json`.
 `pnpm build && pnpm start` compiles to `dist/` and runs the compiled
 server.
 
+## Run with Docker
+
+The maintainer's own deploy is systemd-on-LXC (see **Deploy** below) --
+Docker is the path for everyone else. Image is Debian-based (`node:24-slim`)
+since `sharp`/`@resvg/resvg-js`/`better-sqlite3` need glibc prebuilds, not
+musl.
+
+```bash
+# docker compose
+cp compose.example.yml compose.yml
+docker compose up -d
+# ...or run straight off the example file without copying it:
+docker compose -f compose.example.yml up -d
+
+# equivalent plain docker
+docker build -t ztrmnl .
+docker run -d --name ztrmnl -p 2400:2400 -p 2401:2401 -v ztrmnl-data:/app/data ztrmnl
+```
+
+State (`data/ztrmnl.db`, rendered PNGs, `device.log`) persists in the
+`ztrmnl-data` named volume across restarts/rebuilds.
+
+The server runs with zero config (all defaults) -- fine for a quick look,
+but one field matters for real use:
+
+- **`baseUrl`** -- **critical**. It's baked into `image_url` in the
+  `/api/display` response, so it must be the URL of the Docker host as
+  reachable **from the device itself**, e.g. `http://192.168.1.x:2400` --
+  `localhost`/`127.0.0.1` will not work for a real device on the network.
+- `port` / `adminPort` -- if you change these, update the compose port
+  mappings to match.
+- `activeScreen` -- which screen to render (see **Screens (plugin API)**
+  above).
+- If you don't have the maintainer's InfluxDB, the bundled `nas` screen
+  supports two zero-dependency-ish paths: `fixtureData: true` (renders from
+  the checked-in `reference/nas.json` fixture, no network calls at all) or
+  pointing `collectorUrl` at your own JSON endpoint (legacy path). Otherwise,
+  write your own screen per **Screens (plugin API)** and set `activeScreen`
+  to it.
+
+To supply config, copy `config.example.json` to `config.json`, edit it,
+and mount it read-only (see the commented-out line in
+`compose.example.yml`):
+
+```bash
+cp config.example.json config.json
+# edit config.json, then uncomment the config.json bind mount in compose.yml
+```
+
 ## Verification (2026-07-05, edhar, Node v24.14.0)
 
 - Collector at `192.168.1.43:8088/nas.json` was reachable during dev, so

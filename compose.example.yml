@@ -1,0 +1,32 @@
+# Third-party quickstart. Copy this to compose.yml (or run with
+# `docker compose -f compose.example.yml up`) and adjust as needed.
+#
+# The maintainer's own production deploy is systemd-on-LXC (see the README's
+# "Deploy" section / deploy/ztrmnl.service) -- this file is the Docker path
+# for everyone else.
+
+services:
+  ztrmnl:
+    build: .
+    ports:
+      - "2400:2400"
+      - "2401:2401"
+    restart: unless-stopped
+    volumes:
+      # Named volume: ownership just works (the image creates /app/data as
+      # the `node` user, uid 1000). This is the recommended default.
+      - ztrmnl-data:/app/data
+
+      # Bind-mount alternative, commented out: if you'd rather point at a
+      # host directory, the host dir must already be writable by uid 1000
+      # (`chown -R 1000:1000 ./data` before first start).
+      # - ./data:/app/data
+
+      # Optional config file, read-only. Copy config.example.json to
+      # config.json and edit it first (see README's "Run with Docker"
+      # section for which fields matter); the server runs fine with zero
+      # config using all defaults.
+      # - ./config.json:/app/config.json:ro
+
+volumes:
+  ztrmnl-data:
