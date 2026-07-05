@@ -3,7 +3,8 @@ import { createHash } from "node:crypto";
 import { existsSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { config } from "../config.js";
-import { resolveScreen, type Screen, type RenderContext } from "../screens/index.js";
+import type { Screen, RenderContext } from "../screens/index.js";
+import { resolvePoll } from "../playlist.js";
 import { renderScreen, minify, PANEL_WIDTH, PANEL_HEIGHT } from "../render.js";
 import { parseTelemetry, recordTelemetry, type Telemetry } from "../telemetry.js";
 import { store, type Device } from "../store.js";
@@ -33,6 +34,8 @@ function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
 function buildRenderContext(
   device: Device,
   telemetry: Telemetry,
+  refreshRate: number,
+  now: Date,
   log: RenderContext["log"],
 ): RenderContext {
   const width = device.width ?? PANEL_WIDTH;
@@ -41,14 +44,14 @@ function buildRenderContext(
     width,
     height,
     device: { mac: device.mac, friendlyId: device.friendly_id },
-    now: new Date(),
+    now,
     telemetry: {
       batteryVoltage: telemetry.batteryVoltage,
       percentCharged: telemetry.percentCharged,
       rssi: telemetry.rssi,
       wifiBand: telemetry.wifiBand,
     },
-    refreshRate: config.refreshRate,
+    refreshRate,
     html: (markup: string) => renderScreen(minify(markup), width, height),
     log,
   };
@@ -128,12 +131,17 @@ export function registerDisplayRoute(app: FastifyInstance): void {
       request.log.error(err, "store.touch failed");
     }
 
+    // Per-device screen assignment > active playlist slot > global
+    // activeScreen fallback (src/playlist.ts's resolvePoll -- see README
+    // "Playlist" for the precedence rationale).
+    const now = new Date();
+    const { screen, refreshRate } = resolvePoll(device, now, request.log);
+
     const t0 = performance.now();
     let filename: string | null = null;
     try {
-      // Per-device screen assignment with global fallback.
-      const ctx = buildRenderContext(device, telemetry, request.log);
-      filename = await renderAndStore(resolveScreen(device.screen), ctx);
+      const ctx = buildRenderContext(device, telemetry, refreshRate, now, request.log);
+      filename = await renderAndStore(screen, ctx);
       // filename included so log analysis can join this line to the device's
       // subsequent GET /uploads/<filename> (pipelining-savings evaluation).
       request.log.info({ ms: Math.round(performance.now() - t0), filename }, "render ok");
@@ -155,7 +163,7 @@ export function registerDisplayRoute(app: FastifyInstance): void {
       filename,
       image_url: `${config.baseUrl}/uploads/${filename}`,
       image_url_timeout: 0,
-      refresh_rate: config.refreshRate,
+      refresh_rate: refreshRate,
       update_firmware: false,
       firmware_url: null,
       firmware_version: null,

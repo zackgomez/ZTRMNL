@@ -6,7 +6,8 @@
 // row, no HTML entities (literal '·'/'■' below).
 import { config } from "../config.js";
 import { FONT_FAMILY } from "../render.js";
-import { getCalendarEvents, localMidnight, type CalEvent } from "../sources/calendarEvents.js";
+import { getCalendarEvents, type CalEvent } from "../sources/calendarEvents.js";
+import { localMidnight } from "../time.js";
 import { statusBar, STATUS_BAR_HEIGHT } from "./chrome.js";
 import { htmlScreen } from "./html.js";
 import type { RenderContext } from "./types.js";

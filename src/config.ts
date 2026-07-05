@@ -14,7 +14,13 @@ export interface Config {
   adminPort: number;
   /** Absolute base URL used to build image_url etc. */
   baseUrl: string;
-  /** Seconds between device polls (returned as refresh_rate). */
+  /** Seconds between device polls (returned as refresh_rate). This is the
+   * base of a cascade: a device row's per-device `screen` override always
+   * uses this value; an active playlist.json entry's own `refresh` (or the
+   * playlist file's top-level `refresh`) takes precedence over it for that
+   * slot; with no per-device screen and no active playlist, this is what's
+   * served alongside `activeScreen`. See README "Playlist" and
+   * src/playlist.ts's `resolvePoll`. */
   refreshRate: number;
   /** MAC address of the paired OG device. */
   deviceMac: string;

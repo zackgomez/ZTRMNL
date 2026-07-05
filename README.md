@@ -92,8 +92,11 @@ plus the latest `fw_version`/`width`/`height`/`model` from the telemetry
 headers (fire-and-forget -- never blocks or fails the poll).
 
 Per-device screen assignment: if a device row has a non-null `screen`, that
-screen is rendered for its polls; otherwise it falls back to the global
-`activeScreen` config (`src/screens/index.ts` `resolveScreen()`).
+screen is rendered for its polls (`config.refreshRate` sets its
+`refresh_rate`); otherwise an active **playlist** slot is served if one
+exists, else it falls back to the global `activeScreen`/`config.refreshRate`
+config (`src/playlist.ts`'s `resolvePoll` implements this precedence; see
+**Playlist** below).
 
 ## Screens (plugin API)
 

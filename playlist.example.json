@@ -1,0 +1,7 @@
+{
+  "refresh": 900,
+  "entries": [
+    { "screen": "nas", "refresh": 300, "count": 4 },
+    { "screen": "calendar", "refresh": 1800 }
+  ]
+}
