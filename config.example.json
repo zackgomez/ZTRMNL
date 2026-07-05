@@ -15,5 +15,8 @@
   "activeScreen": "nas",
   "fixtureData": false,
   "authMode": "warn",
-  "allowNewDevices": true
+  "allowNewDevices": true,
+  "calendarIcsUrls": [],
+  "calendarPollSeconds": 1800,
+  "timezone": ""
 }

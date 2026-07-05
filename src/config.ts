@@ -53,6 +53,20 @@ export interface Config {
   authMode: "off" | "warn" | "enforce";
   /** If false, /api/setup refuses to register a MAC it hasn't seen (404). */
   allowNewDevices: boolean;
+  /** ICS feed URLs for the calendar screen (src/screens/calendar.ts), e.g. a
+   * Google Calendar "secret address in iCal format" -- any ICS feed works.
+   * SECRET-SHAPED: never a real value in config.example.json or anywhere else
+   * tracked by git (this repo is public); lives only in the gitignored local
+   * config.json. Empty array (the default) means no feeds configured. */
+  calendarIcsUrls: string[];
+  /** Refetch interval (seconds) for calendarIcsUrls, via src/sources/polled.ts's
+   * polledSource -- a stale feed is served (with a logged warning) rather
+   * than blanking the screen on a transient fetch failure. */
+  calendarPollSeconds: number;
+  /** IANA timezone (e.g. "America/New_York") used for date/time formatting
+   * across screens (currently the calendar screen). Empty string (the
+   * default) uses the server's system timezone. */
+  timezone: string;
 }
 
 export const defaultConfig: Config = {
@@ -73,6 +87,9 @@ export const defaultConfig: Config = {
   fixtureData: false,
   authMode: "warn",
   allowNewDevices: true,
+  calendarIcsUrls: [],
+  calendarPollSeconds: 1800,
+  timezone: "",
 };
 
 const configPath = path.join(repoRoot, "config.json");

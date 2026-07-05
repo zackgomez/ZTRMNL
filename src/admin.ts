@@ -52,11 +52,17 @@ function ago(iso: string): string {
 function renderConfigRows(): string {
   return Object.entries(config)
     .map(([key, value]) => {
-      const cell = SECRET_FIELD_RE.test(key)
-        ? value
-          ? "set"
-          : "unset"
-        : escapeHtml(JSON.stringify(value));
+      let cell: string;
+      if (key === "calendarIcsUrls") {
+        // URL-shaped secret (Google's "secret address in iCal format") --
+        // show a count, never the values themselves.
+        const count = Array.isArray(value) ? value.length : 0;
+        cell = count > 0 ? `set (${count})` : "unset";
+      } else if (SECRET_FIELD_RE.test(key)) {
+        cell = value ? "set" : "unset";
+      } else {
+        cell = escapeHtml(JSON.stringify(value));
+      }
       return `<tr><td>${escapeHtml(key)}</td><td>${cell}</td></tr>`;
     })
     .join("\n");

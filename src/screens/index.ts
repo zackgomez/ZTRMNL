@@ -1,5 +1,6 @@
 import { config } from "../config.js";
 import { nasScreen } from "./nas.js";
+import { calendarScreen } from "./calendar.js";
 import type { Screen } from "./types.js";
 
 export type { Screen, RenderContext } from "./types.js";
@@ -7,6 +8,7 @@ export { htmlScreen } from "./html.js";
 
 export const screens: Record<string, Screen> = {
   [nasScreen.name]: nasScreen,
+  [calendarScreen.name]: calendarScreen,
 };
 
 /**

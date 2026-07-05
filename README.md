@@ -249,6 +249,53 @@ value in `config.example.json` or anywhere else tracked by git -- the
 token (and URL/org, treated the same way for caution) live only in the
 gitignored local `config.json`.
 
+### polledSource -- generic polled-source cache
+
+`src/sources/polled.ts` is a small, dependency-free helper for screens whose
+data comes from something you don't want to hit on every single poll: `const
+source = polledSource({ name, intervalMs, fetch })` returns `{ get(log?) }`.
+A value younger than `intervalMs` is served straight from cache; otherwise
+`fetch()` runs. On failure, a cached value (however stale) is served with a
+logged warning -- screens keep rendering through a transient outage rather
+than going blank; with no cache yet, the error propagates so display.ts's
+last-good-PNG fallback can handle it. Concurrent `get()` calls made while a
+refresh is in flight share that one promise, so a slow feed can't be
+stampeded by overlapping polls. `src/sources/calendarEvents.ts` is the first
+consumer; expect more screens to reuse it.
+
+### calendar screen data source
+
+`src/screens/calendar.ts` renders a two-column agenda (today on the left,
+the next 4 days on the right) from ICS feeds, fetched/parsed/merged by
+`src/sources/calendarEvents.ts` and cached via `polledSource`:
+
+- `calendarIcsUrls` -- one or more ICS feed URLs, e.g. a Google Calendar's
+  **secret address in iCal format** (calendar Settings -> "Integrate
+  calendar" -> "Secret address in iCal format"). Any ICS feed works, not
+  just Google's. Empty array (the default) means no feeds, and the screen
+  renders "No upcoming events". **This repo is public** -- like
+  `influxToken`, real values live only in the gitignored local
+  `config.json`; the admin UI shows this field as a count (`set (N)`) rather
+  than the URLs themselves.
+- `calendarPollSeconds` (default **1800**) -- how often the feeds are
+  refetched, via `polledSource`. A feed that's briefly unreachable serves
+  its last-fetched events (with a logged warning) rather than blanking the
+  screen; a feed that's never been reachable at all propagates the error to
+  display.ts's last-good-PNG fallback.
+- `timezone` -- IANA name (e.g. `America/New_York`) used for all of the
+  screen's `Intl.DateTimeFormat` date/time formatting and for computing the
+  "today" window boundary. Empty string (the default) uses the server's
+  system timezone.
+- `fixtureData: true` makes the calendar screen read the static
+  `reference/calendar.ics` fixture instead of fetching `calendarIcsUrls` --
+  a hand-written calendar with a daily recurring event, a weekly event, a
+  weekly all-day event, an `EXDATE`-excluded occurrence, and a
+  `RECURRENCE-ID` override, so it renders meaningfully (and exercises
+  recurrence expansion) at any date.
+
+Recurrence (`RRULE`/`EXDATE`/`RECURRENCE-ID` overrides) is expanded via
+node-ical's own `expandRecurringEvent`, not hand-rolled rrule math.
+
 `pnpm build && pnpm start` compiles to `dist/` and runs the compiled
 server.
 
