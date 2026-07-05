@@ -115,7 +115,7 @@ function buildLeftColumn(day: Date, dayEvents: CalEvent[]): string {
   const shown = timed.slice(0, rowCap);
   const rows = shown.map(
     (e) =>
-      `<div style="display:flex;align-items:center;height:34px;border-bottom:1px solid #ccc;"><span style="width:70px;margin-right:10px;flex-shrink:0;font-size:18px;font-weight:700;">${compactTime(e.start)}</span><span style="font-size:18px;">${truncate(e.title, 20)}</span></div>`,
+      `<div style="display:flex;align-items:center;height:34px;border-bottom:1px solid #ccc;"><span style="width:70px;margin-right:10px;flex-shrink:0;font-size:18px;font-weight:700;">${compactTime(e.start)}</span><span style="font-size:18px;">${truncate(e.title, 26)}</span></div>`,
   );
   if (timed.length > rowCap) {
     rows.push(
