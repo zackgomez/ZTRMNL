@@ -158,6 +158,59 @@ re-hardcoded).
 authors never call `minify()` or `renderScreen()` themselves. New
 screens are registered in `src/screens/index.ts`'s `screens` map.
 
+## Playlist
+
+`playlist.json` (repo root, alongside `config.json`; see
+`playlist.example.json`) turns a device's polls into a rotation across
+several screens instead of one fixed `activeScreen`. It's gitignored --
+like `config.json`, only the example is tracked. Missing file means no
+playlist (the usual case); its absence is silent, not an error.
+
+```json
+{
+  "refresh": 900,
+  "entries": [
+    { "screen": "nas", "refresh": 300, "count": 4 },
+    { "screen": "calendar", "refresh": 1800 }
+  ]
+}
+```
+
+Each entry names a registered `screen` (required) and optionally
+`refresh` (seconds) and `count` (consecutive wakes at that screen,
+default **1**). `refresh` cascades: entry -> the file's top-level
+`refresh` -> `config.refreshRate`. At load, an entry naming an
+unregistered screen, or whose `refresh`/`count` aren't positive
+integers, is dropped with a logged warning; unparseable JSON or zero
+valid entries leaves the playlist inactive (parse/validation errors are
+logged once per file change, not once per poll -- see below).
+
+**Slot math is wall-clock derived and stateless** -- no rotation cursor
+is stored in sqlite. Each entry occupies `count * refresh` seconds; the
+cycle length is the sum across all entries (3000s for the example
+above: 4x300 + 1800). The cycle is anchored at the device's **local
+midnight** (`src/time.ts`'s `localMidnight`, using `config.timezone`),
+and `elapsed = (now - localMidnight) % cycleSeconds` picks which
+entry's segment `now` falls in by walking cumulative spans. This makes
+the rotation deterministic and self-healing: a missed wake, a manual
+refresh, a server restart, none of it can desync the schedule, since
+every poll re-derives its slot from `now` alone rather than advancing
+state. The served `refresh_rate` is seconds-until-the-next-boundary
+within that segment (`refresh - (elapsed_in_segment % refresh)`),
+clamped to a minimum of **60s** so a device waking a few seconds early
+is never told to immediately re-wake.
+
+**Precedence per poll** (`src/playlist.ts`'s `resolvePoll`, wired into
+`src/routes/display.ts` in place of the old `resolveScreen` +
+`config.refreshRate` pair): a device row's per-device `screen`
+override (`config.refreshRate`) beats an active playlist slot (its own
+resolved screen + refresh_rate) beats the global
+`activeScreen`/`config.refreshRate` fallback.
+
+**Hot-reloaded**: the file is re-read when its mtime changes (a `stat`
+per poll is cheap given 15-minute wake intervals) -- edit
+`playlist.json` and the next poll picks it up, no restart needed.
+
 ## Satori HTML dialect rules
 
 Satori (used via `satori-html` to parse an HTML string) is not a browser --
@@ -401,6 +454,13 @@ cp config.example.json config.json
 - **Audit full TypeScript compliance** (strict flags,
   `exactOptionalPropertyTypes`/`noUncheckedIndexedAccess`, stray `any`s/
   assertions).
+- **Per-plugin config files for plugin-specific secrets/config.** Today the
+  only config surface is the global `/opt/ztrmnl/config.json` (e.g. the
+  Influx token), so a screen needing its own API key or settings has no
+  home for them. Idea: each plugin ships/loads a conf file whose parsed
+  values reach the screen -- either via the `RenderContext` passed to
+  `Screen.render`, or through a wrapper helper that closes over the
+  loaded config. API shape needs discussion before building.
 - **`reactScreen`**: the planned authoring layer above `htmlScreen` --
   screens as JSX (`render(): ReactNode`) with a small library of
   ZTRMNL/satori components (bars, stat tiles, layout primitives) so screen
