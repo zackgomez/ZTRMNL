@@ -23,10 +23,9 @@ src/routes/display.ts
   2. build a RenderContext (panel dims + device identity from the sqlite
      row, an injected clock, request.log, and an html() helper) and call
      resolveScreen(device.screen).render(ctx)  -- ON DEMAND, 3s timeout
-       screens/nas.ts: query InfluxDB fresh (src/sources/nasMetrics.ts,
-       same Flux queries as the retired Python collector) -> interpolate
-       into HTML string -> ctx.html() -> render.ts: satori-html -> satori
-       -> resvg -> sharp
+       screens/nas.tsx: query InfluxDB fresh (src/sources/nasMetrics.ts,
+       same Flux queries as the retired Python collector) -> JSX element
+       tree -> render.ts renderElement: satori -> resvg -> sharp
   3. success: write PNG to data/uploads/<sha256[:12]>.png, remember as
      "last-good"
      failure: fall back to serving the last-good PNG (device never sees
@@ -119,47 +118,55 @@ dimensions.
 
 Implementing raw `Screen` directly is for non-HTML output -- e.g. a
 plugin that proxies or otherwise produces a pre-made PNG. The normal
-authoring path is `htmlScreen()` (`src/screens/html.ts`), which wraps a
-`renderHTML(ctx): string | Promise<string>` function:
+authoring path is `reactScreen()` (`src/screens/react.tsx`): screens are
+JSX, since satori consumes React elements natively (no react-dom, no
+hooks, no state -- components are pure functions called once per render).
+The bundled screens (`nas.tsx`, `calendar.tsx`) and the status bar
+(`chrome.tsx`) are all authored this way:
 
-```ts
-export const myScreen = htmlScreen({
+```tsx
+export const myScreen = reactScreen({
   name: "my-screen",
-  async renderHTML(ctx) {
-    return `<div style="width:${ctx.width}px;height:${ctx.height}px;...">...</div>`;
+  async render(ctx) {
+    return <div style={{ width: `${ctx.width}px`, height: `${ctx.height}px`, display: "flex" }}>...</div>;
   },
 });
 ```
 
+`htmlScreen()` (`src/screens/html.ts`) is the HTML-string alternative --
+it wraps a `renderHTML(ctx): string | Promise<string>` function whose
+markup goes through satori-html first. Same pipeline underneath
+(`render.ts`'s `renderElement`), but two extra dialect rules apply to
+strings (see below).
+
 ### Status bar chrome
 
-`src/screens/chrome.ts` exports `statusBar(ctx)`, a slim (32px,
-`STATUS_BAR_HEIGHT`) on-glass bar that screens prepend to their markup:
+`src/screens/chrome.tsx` exports `<StatusBar ctx={ctx} />`, a slim (32px,
+`STATUS_BAR_HEIGHT`) on-glass bar that screens prepend to their tree:
 friendly name + MAC on the left; on the right, in order, `every <Xm>` ·
-wifi · battery (battery rightmost). The bar's background is `#ccc` --
-chosen so the device's 2-bit quantizer (thresholds `<43`→black,
-`<128`→dark-gray(85), `<213`→light-gray(170), else white) buckets it to
-light-gray rather than snapping to white (`#ddd`/`#eee` would). Wifi is a
-drawn 4-bar signal icon (filled bars `#000`, empty bars `#fff` for contrast
-against the grey background) sized off RSSI (`≥-55`→4 bars, `≥-65`→3,
-`≥-75`→2, else 1; no RSSI → all empty), followed by a network label
-(`config.wifiName` when set, else the telemetry-reported band `2.4G`/`5G`
-when present, else nothing), plus a bold "weak" tag and a small drawn
-warning box when RSSI is present and below `-75`. Battery is a drawn
-24x14px icon (2px border + a fill div sized to the charge % + a small nub)
-followed by `NN%` text -- `?` with an empty icon when neither
-`percent-charged` nor a voltage reading is available. Because renders
-happen on demand inside the poll itself, all of this comes straight from
-`ctx.telemetry` -- the headers of the poll currently being served, not a
-stale sqlite snapshot -- so the readings are always as fresh as possible.
-`nas.ts` is the reference integration: the outer container becomes a flex
-column of `[statusBar(ctx), content]`, with the content wrapper's height
-reduced by `STATUS_BAR_HEIGHT` (imported from `chrome.ts`, not
-re-hardcoded).
+wifi · battery (battery rightmost). The bar is white with a 2px black
+bottom border (a `#ccc` bar was tried and read too dark on glass -- the
+2-bit quantizer thresholds are `<43`→black, `<128`→dark-gray(85),
+`<213`→light-gray(170), else white; `#ddd`/`#eee` snap to white). Wifi is
+a drawn 4-bar signal icon (filled bars `#000`, empty bars `#ccc`) sized
+off RSSI (`≥-55`→4 bars, `≥-65`→3, `≥-75`→2, else 1; no RSSI → all
+empty), followed by a network label (`config.wifiName` when set, else the
+telemetry-reported band `2.4G`/`5G` when present, else nothing), plus a
+bold "weak" tag and a small drawn warning box when RSSI is present and
+below `-75`. Battery is a drawn 24x14px icon (2px border + a fill div
+sized to the charge % + a small nub) followed by `NN%` text -- `?` with
+an empty icon when neither `percent-charged` nor a voltage reading is
+available. Because renders happen on demand inside the poll itself, all
+of this comes straight from `ctx.telemetry` -- the headers of the poll
+currently being served, not a stale sqlite snapshot -- so the readings
+are always as fresh as possible. `nas.tsx` is the reference integration:
+the outer container is a flex column of `[<StatusBar/>, content]`, with
+the content wrapper's height reduced by `STATUS_BAR_HEIGHT` (imported
+from `chrome.tsx`, not re-hardcoded).
 
-`htmlScreen` just calls `ctx.html(await renderHTML(ctx))` -- screen
-authors never call `minify()` or `renderScreen()` themselves. New
-screens are registered in `src/screens/index.ts`'s `screens` map.
+Screen authors never call `minify()`, `renderScreen()`, or
+`renderElement()` themselves -- the wrappers do. New screens are
+registered in `src/screens/index.ts`'s `screens` map.
 
 ## Playlist
 
@@ -217,9 +224,10 @@ per poll is cheap given 15-minute wake intervals) -- edit
 ## Satori HTML dialect rules
 
 Satori (used via `satori-html` to parse an HTML string) is not a browser --
-it implements a flexbox-only subset of CSS via Yoga layout. Screens must
-follow these rules (see `src/screens/nas.ts` and `src/render.ts` for where
-they're applied):
+it implements a flexbox-only subset of CSS via Yoga layout. Rules 1-3
+apply to every screen, JSX or HTML-string; rules 4-5 are HTML-string
+artifacts that JSX screens are immune to (JSX has no inter-tag text nodes
+or entity decoding -- strings are literal text):
 
 1. **Every element with more than one child needs explicit `display:flex`.**
    Satori has no block layout; there's no implicit stacking.
@@ -229,14 +237,14 @@ they're applied):
    element `children: []`, and satori requires an explicit `display` for
    any element with array children, including empty ones (e.g. bar-fill
    divs with no text inside).
-4. **Whitespace between tags must be stripped before parsing.** Text nodes
-   (including pure-whitespace ones) count as children, which trips rule 1.
-   `render.ts` exports `minify()` (`.replace(/>\s+</g, '><').trim()`) for
-   this -- screens should minify their markup before calling
-   `renderScreen()`.
-5. **No HTML entities.** Satori doesn't decode `&middot;`, `&#9679;`, etc.
-   Use literal UTF-8 characters (`·`, `●`, `○`) in the template string
-   instead.
+4. **(HTML strings only) Whitespace between tags must be stripped before
+   parsing.** Text nodes (including pure-whitespace ones) count as
+   children, which trips rule 1. `render.ts` exports `minify()`
+   (`.replace(/>\s+</g, '><').trim()`) for this -- `ctx.html()` applies it
+   automatically.
+5. **(HTML strings only) No HTML entities.** Satori doesn't decode
+   `&middot;`, `&#9679;`, etc. Use literal UTF-8 characters (`·`, `●`,
+   `○`) in the template string instead.
 
 ## Admin UI
 
@@ -281,7 +289,7 @@ auth**. The device registry is a SQLite file at `data/ztrmnl.db`.
 
 ### nas screen data source
 
-`src/screens/nas.ts` fetches its data in priority order:
+`src/screens/nas.tsx` fetches its data in priority order:
 
 1. `fixtureData: true` -- reads the static `reference/nas.json` fixture.
 2. `influxUrl` set (non-empty) -- `src/sources/nasMetrics.ts` queries
@@ -326,7 +334,7 @@ consumer; expect more screens to reuse it.
 
 ### calendar screen data source
 
-`src/screens/calendar.ts` renders a two-column agenda (today on the left,
+`src/screens/calendar.tsx` renders a two-column agenda (today on the left,
 the next 4 days on the right) from ICS feeds, fetched/parsed/merged by
 `src/sources/calendarEvents.ts` and cached via `polledSource`:
 
@@ -469,13 +477,12 @@ cp config.example.json config.json
   values reach the screen -- either via the `RenderContext` passed to
   `Screen.render`, or through a wrapper helper that closes over the
   loaded config. API shape needs discussion before building.
-- **`reactScreen`**: the planned authoring layer above `htmlScreen` --
-  screens as JSX (`render(): ReactNode`) with a small library of
-  ZTRMNL/satori components (bars, stat tiles, layout primitives) so screen
-  authors don't hand-write inline-CSS strings. Satori consumes React
-  elements natively (satori-html is the adapter, not the core path), so
-  this is additive. Doesn't have to be React proper -- any JSX runtime
-  producing element trees satori accepts.
+- **Shared component library for JSX screens.** `reactScreen` shipped
+  (screens are JSX; chrome/nas/calendar are ported, pixel-verified against
+  the string originals), but the small library of ZTRMNL/satori components
+  it was meant to enable -- bars, stat tiles, layout primitives like
+  `Row`/`Col` with `display:flex` baked in -- doesn't exist yet. Extract
+  them when the third JSX screen starts repeating patterns.
 
 ## Deploy
 

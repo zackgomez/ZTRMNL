@@ -1,8 +1,11 @@
-// On-demand HTML -> 2-bit PNG render pipeline for the TRMNL OG display.
-// Port of reference/render.mjs. No headless browser: satori-html turns an
-// HTML string into a satori (React-element-shaped) tree, satori lays it out
-// with Yoga and emits SVG, resvg rasterizes to PNG, sharp quantizes to a
-// 4-gray palette (matches the OG panel's 2-bit depth).
+// On-demand JSX/HTML -> 2-bit PNG render pipeline for the TRMNL OG display.
+// Port of reference/render.mjs. No headless browser: satori consumes React
+// elements natively (`renderElement`, the core path -- see reactScreen in
+// src/screens/react.tsx); for HTML-string screens, satori-html adapts the
+// string into the same element shape (`renderScreen`). Either way satori
+// lays out with Yoga and emits SVG, resvg rasterizes to PNG, sharp + the
+// hand-rolled encoder below quantize to the OG panel's 2-bit grayscale.
+import type { ReactNode } from "react";
 import satori from "satori";
 import { html } from "satori-html";
 import { Resvg } from "@resvg/resvg-js";
@@ -116,17 +119,16 @@ export function encodeGray2bitPng(pixels: Buffer, width: number, height: number)
 }
 
 /**
- * Render an HTML string (already minified/interpolated by the caller) to a
- * 2-bit grayscale PNG sized for the given panel dimensions (defaulting to
- * the OG panel's 800x480).
+ * Render a React element tree (satori's native input -- what JSX screens
+ * produce) to a 2-bit grayscale PNG sized for the given panel dimensions
+ * (defaulting to the OG panel's 800x480).
  */
-export async function renderScreen(
-  htmlString: string,
+export async function renderElement(
+  element: ReactNode,
   width: number = PANEL_WIDTH,
   height: number = PANEL_HEIGHT,
 ): Promise<Buffer> {
-  const markup = html(htmlString);
-  const svg = await satori(markup, {
+  const svg = await satori(element, {
     width,
     height,
     fonts,
@@ -138,4 +140,16 @@ export async function renderScreen(
     .raw()
     .toBuffer();
   return encodeGray2bitPng(gray, width, height);
+}
+
+/**
+ * Render an HTML string (already minified/interpolated by the caller) --
+ * satori-html adapts it into the element shape `renderElement` consumes.
+ */
+export async function renderScreen(
+  htmlString: string,
+  width: number = PANEL_WIDTH,
+  height: number = PANEL_HEIGHT,
+): Promise<Buffer> {
+  return renderElement(html(htmlString) as unknown as ReactNode, width, height);
 }
