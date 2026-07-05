@@ -8,8 +8,27 @@ import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { config, repoRoot } from "./config.js";
 import { store } from "./store.js";
-import { screens } from "./screens/index.js";
+import { screens, type RenderContext } from "./screens/index.js";
+import { renderScreen, minify, PANEL_WIDTH, PANEL_HEIGHT } from "./render.js";
 import { uploadsDir, getLastGoodFilename } from "./state.js";
+
+const RENDER_TIMEOUT_MS = 3000;
+
+function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error(`render timed out after ${ms}ms`)), ms);
+    promise.then(
+      (v) => {
+        clearTimeout(timer);
+        resolve(v);
+      },
+      (err) => {
+        clearTimeout(timer);
+        reject(err);
+      },
+    );
+  });
+}
 
 const pkg = JSON.parse(readFileSync(path.join(repoRoot, "package.json"), "utf-8")) as {
   version: string;
@@ -102,6 +121,23 @@ function renderScreenRows(): string {
     .join("\n");
 }
 
+/** Live gallery: one fresh on-demand render per registered screen, per page
+ * load -- cheap since rendering is already on-demand (see README "Admin
+ * UI"). Each <img> hits GET /screens/<name>.png (no-store, so every load
+ * re-renders); a broken render just fails to load the image rather than
+ * breaking the page. */
+function renderScreenGallery(): string {
+  return Object.keys(screens)
+    .map((name) => {
+      const label = name === config.activeScreen ? `${escapeHtml(name)} (global default)` : escapeHtml(name);
+      return `<div class="gallery-item">
+  <p>${label}</p>
+  <img src="/screens/${encodeURIComponent(name)}.png" width="400" height="240" alt="live render of screen &quot;${escapeHtml(name)}&quot;">
+</div>`;
+    })
+    .join("\n");
+}
+
 function renderCurrentImage(): string {
   const filename = getLastGoodFilename();
   if (!filename) return `<p class="muted">(no image rendered yet)</p>`;
@@ -121,8 +157,11 @@ function renderPage(): string {
   table { border-collapse: collapse; width: 100%; font-size: 0.85rem; }
   td, th { border: 1px solid #333; padding: 0.3rem 0.5rem; text-align: left; vertical-align: top; }
   .muted { color: #888; }
-  img { max-width: 100%; border: 1px solid #444; image-rendering: pixelated; }
+  img { max-width: 100%; height: auto; border: 1px solid #444; image-rendering: pixelated; }
   code { color: #9cf; }
+  .gallery { display: flex; flex-wrap: wrap; gap: 1.5rem; }
+  .gallery-item { max-width: 400px; }
+  .gallery-item p { margin: 0 0 0.3rem; font-size: 0.85rem; }
 </style>
 </head>
 <body>
@@ -155,6 +194,12 @@ function renderPage(): string {
   ${renderScreenRows()}
 </table>
 
+<h2>Screen gallery</h2>
+<p class="muted">Each render below is fresh -- generated on demand when this page loaded, not cached.</p>
+<div class="gallery">
+${renderScreenGallery()}
+</div>
+
 <h2>Current image</h2>
 ${renderCurrentImage()}
 
@@ -182,6 +227,46 @@ export function buildAdminApp(): FastifyInstance {
       return { error: "last-good image file is missing on disk" };
     }
     reply.type("image/png").send(readFileSync(filePath));
+  });
+
+  // Live screen gallery: render any registered screen on demand, fresh per
+  // request -- nearly free since rendering is already on-demand (see README
+  // "Admin UI"). Never writes to data/uploads; the PNG is a transient
+  // response buffer only, unlike the device-facing /api/display path.
+  app.get("/screens/:name.png", async (request, reply) => {
+    const { name } = request.params as { name: string };
+    const screen = screens[name];
+    if (!screen) {
+      reply.code(404);
+      return { error: `unknown screen "${name}" -- registered screens: ${Object.keys(screens).join(", ")}` };
+    }
+
+    const width = PANEL_WIDTH;
+    const height = PANEL_HEIGHT;
+    const ctx: RenderContext = {
+      width,
+      height,
+      device: { mac: "00:00:00:00:00:00", friendlyId: "PREVIEW" },
+      now: new Date(),
+      telemetry: {
+        batteryVoltage: undefined,
+        percentCharged: undefined,
+        rssi: undefined,
+        wifiBand: undefined,
+      },
+      refreshRate: config.refreshRate,
+      html: (markup: string) => renderScreen(minify(markup), width, height),
+      log: request.log,
+    };
+
+    try {
+      const png = await withTimeout(screen.render(ctx), RENDER_TIMEOUT_MS);
+      reply.header("cache-control", "no-store").type("image/png").send(png);
+    } catch (err) {
+      request.log.error(err, "screen preview render failed");
+      reply.code(500);
+      return { error: err instanceof Error ? err.message : String(err) };
+    }
   });
 
   app.get("/healthz", async () => ({ ok: true, uptime: process.uptime() }));
