@@ -143,8 +143,12 @@ strings (see below).
 
 `src/screens/chrome.tsx` exports `<StatusBar ctx={ctx} />`, a slim (32px,
 `STATUS_BAR_HEIGHT`) on-glass bar that screens prepend to their tree:
-friendly name + MAC on the left; on the right, in order, `every <Xm>` ·
-wifi · battery (battery rightmost). The bar is white with a 2px black
+friendly name + MAC on the left; a bold 24h `HH:MM` clock dead center
+(render time in `config.timezone` -- on glass it's effectively a
+"rendered at" stamp that ages until the next wake; the side clusters sit
+in mirrored `flex:1` wrappers so it stays centered regardless of their
+widths); on the right, in order, `every <Xm>` · wifi · battery (battery
+rightmost). The bar is white with a 2px black
 bottom border (a `#ccc` bar was tried and read too dark on glass -- the
 2-bit quantizer thresholds are `<43`→black, `<128`→dark-gray(85),
 `<213`→light-gray(170), else white; `#ddd`/`#eee` snap to white). Wifi is

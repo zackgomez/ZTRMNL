@@ -149,13 +149,28 @@ function Sep(): ReactNode {
   return <span style={{ margin: "0 8px" }}>·</span>;
 }
 
+/** Render time as 24h `HH:MM` in the configured timezone. On glass this is
+ * effectively a "rendered at" stamp: it ages up to refresh_rate seconds
+ * until the next wake repaints it. */
+function clockLabel(now: Date): string {
+  return new Intl.DateTimeFormat("en-US", {
+    timeZone: config.timezone || undefined,
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23",
+  }).format(now);
+}
+
 /**
  * Slim status bar for the top of every screen: `<friendly_id> · <mac>` on
- * the left; on the right, in order, `every <Xm>` · wifi (drawn bars + label
- * + weak warning) · battery (drawn icon + `NN%`), battery rightmost. All
- * values come from `ctx.telemetry` -- the CURRENT poll's parsed headers --
- * so the readings are as fresh as the wake that's rendering them, not a
- * stale sqlite snapshot from a prior poll.
+ * the left; the render-time clock (24h, config.timezone) dead center; on
+ * the right, in order, `every <Xm>` · wifi (drawn bars + label + weak
+ * warning) · battery (drawn icon + `NN%`), battery rightmost. The side
+ * clusters sit in mirrored flex:1 wrappers so the clock stays centered
+ * regardless of how wide either side is. All values come from `ctx` -- the
+ * CURRENT poll's parsed headers and injected clock -- so the readings are
+ * as fresh as the wake that's rendering them, not a stale sqlite snapshot
+ * from a prior poll.
  */
 export function StatusBar({ ctx }: { ctx: RenderContext }): ReactNode {
   return (
@@ -171,12 +186,14 @@ export function StatusBar({ ctx }: { ctx: RenderContext }): ReactNode {
         color: "#000",
         background: BAR_BG,
         borderBottom: "2px solid #000",
-        justifyContent: "space-between",
         alignItems: "center",
       }}
     >
-      <span>{`${ctx.device.friendlyId} · ${ctx.device.mac}`}</span>
-      <div style={{ display: "flex", alignItems: "center" }}>
+      <div style={{ display: "flex", flex: 1, alignItems: "center" }}>
+        <span>{`${ctx.device.friendlyId} · ${ctx.device.mac}`}</span>
+      </div>
+      <span style={{ fontWeight: 700 }}>{clockLabel(ctx.now)}</span>
+      <div style={{ display: "flex", flex: 1, alignItems: "center", justifyContent: "flex-end" }}>
         <span>{`every ${rateLabel(ctx.refreshRate)}`}</span>
         <Sep />
         <WifiGroup ctx={ctx} />
