@@ -128,6 +128,18 @@ export const myScreen = htmlScreen({
 });
 ```
 
+### Status bar chrome
+
+`src/screens/chrome.ts` exports `statusBar(ctx)`, a slim (28px) on-glass bar
+that screens prepend to their markup: friendly name + MAC on the left,
+`bat <NN>% · <RSSI>dBm · every <Xm>` on the right. Because renders happen
+on demand inside the poll itself, its data comes straight from `ctx.telemetry`
+-- the headers of the poll currently being served, not a stale sqlite
+snapshot -- so the battery reading is always as fresh as possible. `nas.ts`
+is the reference integration: the outer container becomes a flex column of
+`[statusBar(ctx), content]`, with the content wrapper's height reduced by
+the bar's 28px.
+
 `htmlScreen` just calls `ctx.html(await renderHTML(ctx))` -- screen
 authors never call `minify()` or `renderScreen()` themselves. New
 screens are registered in `src/screens/index.ts`'s `screens` map.

@@ -16,8 +16,13 @@ import path from "node:path";
 import { config } from "../config.js";
 import { FONT_FAMILY } from "../render.js";
 import { fetchNasMetrics, type NasData } from "../sources/nasMetrics.js";
+import { statusBar } from "./chrome.js";
 import { htmlScreen } from "./html.js";
 import type { RenderContext } from "./types.js";
+
+// Height reserved at the top of every screen for the on-glass status bar
+// (see chrome.ts) -- kept in sync with statusBar()'s own height:28px.
+const STATUS_BAR_HEIGHT = 28;
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const fixturePath = path.resolve(__dirname, "..", "..", "reference", "nas.json");
@@ -43,8 +48,11 @@ async function fetchData(): Promise<NasData> {
 const col = "display:flex;flex-direction:column;";
 
 function buildMarkup(d: NasData, ctx: RenderContext): string {
+  const contentHeight = ctx.height - STATUS_BAR_HEIGHT;
   const raw = `
-<div style="height:${ctx.height}px;width:${ctx.width}px;padding:20px 32px;${col}justify-content:space-between;font-family:'${FONT_FAMILY}';background:#fff;color:#000;">
+<div style="height:${ctx.height}px;width:${ctx.width}px;${col}font-family:'${FONT_FAMILY}';background:#fff;color:#000;">
+${statusBar(ctx)}
+<div style="height:${contentHeight}px;width:${ctx.width}px;padding:16px 32px;${col}justify-content:space-between;">
 
   <div style="${col}">
     <div style="${col}margin-bottom:14px;">
@@ -105,6 +113,7 @@ function buildMarkup(d: NasData, ctx: RenderContext): string {
     <span>up ${d.uptime_d} · ${d.updated}</span>
   </div>
 
+</div>
 </div>`;
   return raw;
 }

@@ -5,7 +5,7 @@ import path from "node:path";
 import { config } from "../config.js";
 import { resolveScreen, type Screen, type RenderContext } from "../screens/index.js";
 import { renderScreen, minify, PANEL_WIDTH, PANEL_HEIGHT } from "../render.js";
-import { parseTelemetry, recordTelemetry } from "../telemetry.js";
+import { parseTelemetry, recordTelemetry, type Telemetry } from "../telemetry.js";
 import { store, type Device } from "../store.js";
 import { uploadsDir, getLastGoodFilename, setLastGoodFilename } from "../state.js";
 
@@ -30,7 +30,11 @@ function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
 /** Build the RenderContext for one poll: panel dims + device identity from
  * the sqlite row (falling back to the default panel size), an injected
  * clock, and an html() helper that minifies + renders at those dims. */
-function buildRenderContext(device: Device, log: RenderContext["log"]): RenderContext {
+function buildRenderContext(
+  device: Device,
+  telemetry: Telemetry,
+  log: RenderContext["log"],
+): RenderContext {
   const width = device.width ?? PANEL_WIDTH;
   const height = device.height ?? PANEL_HEIGHT;
   return {
@@ -38,6 +42,12 @@ function buildRenderContext(device: Device, log: RenderContext["log"]): RenderCo
     height,
     device: { mac: device.mac, friendlyId: device.friendly_id },
     now: new Date(),
+    telemetry: {
+      batteryVoltage: telemetry.batteryVoltage,
+      percentCharged: telemetry.percentCharged,
+      rssi: telemetry.rssi,
+    },
+    refreshRate: config.refreshRate,
     html: (markup: string) => renderScreen(minify(markup), width, height),
     log,
   };
@@ -121,7 +131,7 @@ export function registerDisplayRoute(app: FastifyInstance): void {
     let filename: string | null = null;
     try {
       // Per-device screen assignment with global fallback.
-      const ctx = buildRenderContext(device, request.log);
+      const ctx = buildRenderContext(device, telemetry, request.log);
       filename = await renderAndStore(resolveScreen(device.screen), ctx);
       // filename included so log analysis can join this line to the device's
       // subsequent GET /uploads/<filename> (pipelining-savings evaluation).
