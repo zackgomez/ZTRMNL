@@ -1,0 +1,27 @@
+{
+  "name": "ztrmnl",
+  "version": "0.1.0",
+  "description": "On-demand BYOS server for a TRMNL OG e-ink display (Fastify + satori, no headless browser)",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "dev": "tsx watch src/server.ts",
+    "build": "tsc",
+    "start": "node dist/server.js"
+  },
+  "dependencies": {
+    "@fastify/static": "^8.0.0",
+    "@resvg/resvg-js": "^2.6.2",
+    "better-sqlite3": "^12.11.1",
+    "fastify": "^5.0.0",
+    "satori": "^0.12.0",
+    "satori-html": "^0.3.2",
+    "sharp": "^0.33.5"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "^7.6.13",
+    "@types/node": "^22.0.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.6.0"
+  }
+}

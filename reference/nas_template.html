@@ -1,0 +1,63 @@
+<div style="height:480px;box-sizing:border-box;padding:20px 32px;display:flex;flex-direction:column;justify-content:space-between;font-family:inherit;">
+
+  <!-- STORAGE -->
+  <div>
+    <div style="margin-bottom:14px;">
+      <div style="display:flex;justify-content:space-between;align-items:baseline;">
+        <span style="font-size:34px;font-weight:700;">tank</span>
+        <span style="font-size:36px;font-weight:700;">{{ source_1.tank_pct }}%</span>
+      </div>
+      <div style="height:34px;border:2px solid #000;border-radius:5px;overflow:hidden;margin:4px 0;">
+        <div style="height:100%;width:{{ source_1.tank_pct }}%;background:#888;"></div>
+      </div>
+      <div style="display:flex;justify-content:space-between;font-size:18px;">
+        <span>{{ source_1.tank_used }} / {{ source_1.tank_total }}</span>
+        <span>{{ source_1.tank_health }} &middot; frag {{ source_1.tank_frag }}</span>
+      </div>
+    </div>
+
+    <div>
+      <div style="display:flex;justify-content:space-between;align-items:baseline;">
+        <span style="font-size:34px;font-weight:700;">fastpool</span>
+        <span style="font-size:36px;font-weight:700;">{{ source_1.fastpool_pct }}%</span>
+      </div>
+      <div style="height:34px;border:2px solid #000;border-radius:5px;overflow:hidden;margin:4px 0;">
+        <div style="height:100%;width:{{ source_1.fastpool_pct }}%;background:#888;"></div>
+      </div>
+      <div style="display:flex;justify-content:space-between;font-size:18px;">
+        <span>{{ source_1.fastpool_used }} / {{ source_1.fastpool_total }}</span>
+        <span>{{ source_1.fastpool_health }} &middot; frag {{ source_1.fastpool_frag }}</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- STATS -->
+  <div style="display:flex;justify-content:space-between;text-align:center;border-top:2px solid #000;border-bottom:2px solid #000;padding:16px 0;">
+    <div style="flex:1;padding:0 10px;">
+      <div style="font-size:48px;font-weight:700;line-height:1;">{{ source_1.load1 }}</div>
+      <div style="font-size:19px;margin-top:6px;">load 1m</div>
+      <div style="font-size:16px;">{{ source_1.load5 }} / {{ source_1.load15 }}</div>
+    </div>
+    <div style="flex:1;padding:0 10px;border-left:2px solid #888;">
+      <div style="font-size:48px;font-weight:700;line-height:1;">{{ source_1.mem_pct }}%</div>
+      <div style="font-size:19px;margin-top:6px;">memory</div>
+      <div style="font-size:16px;">{{ source_1.ncpus }} cores</div>
+    </div>
+    <div style="flex:1;padding:0 10px;border-left:2px solid #888;">
+      <div style="font-size:48px;font-weight:700;line-height:1;">{{ source_1.cpu_w }}<span style="font-size:26px;">W</span></div>
+      <div style="font-size:19px;margin-top:6px;">CPU power</div>
+      <div style="font-size:16px;">{{ source_1.cpu_w_avg }}W avg/1h</div>
+    </div>
+    <div style="flex:1;padding:0 10px;border-left:2px solid #888;display:flex;flex-direction:column;justify-content:center;">
+      <div style="font-size:40px;line-height:1;">{% if source_1.internet == "up" %}&#9679;{% else %}&#9675;{% endif %}</div>
+      <div style="font-size:19px;margin-top:8px;">internet {{ source_1.internet }}</div>
+    </div>
+  </div>
+
+  <!-- FOOTER -->
+  <div style="display:flex;justify-content:space-between;font-size:22px;font-weight:700;">
+    <span>NAS</span>
+    <span>up {{ source_1.uptime_d }} &middot; {{ source_1.updated }}</span>
+  </div>
+
+</div>

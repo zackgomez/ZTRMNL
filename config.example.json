@@ -1,0 +1,14 @@
+{
+  "port": 2400,
+  "baseUrl": "http://localhost:2400",
+  "refreshRate": 900,
+  "deviceMac": "94:A9:90:8F:48:D4",
+  "apiKey": "ztrmnl-dev-key",
+  "friendlyId": "ZTRMNL",
+  "collectorUrl": "http://192.168.1.43:8088/nas.json",
+  "dataDir": "data",
+  "activeScreen": "nas",
+  "fixtureData": false,
+  "authMode": "warn",
+  "allowNewDevices": true
+}
