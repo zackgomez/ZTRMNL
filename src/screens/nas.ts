@@ -15,40 +15,23 @@ import { fileURLToPath } from "node:url";
 import path from "node:path";
 import { config } from "../config.js";
 import { FONT_FAMILY } from "../render.js";
+import { fetchNasMetrics, type NasData } from "../sources/nasMetrics.js";
 import { htmlScreen } from "./html.js";
 import type { RenderContext } from "./types.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const fixturePath = path.resolve(__dirname, "..", "..", "reference", "nas.json");
 
-interface NasData {
-  tank_pct: number;
-  tank_used: string;
-  tank_total: string;
-  tank_health: string;
-  tank_frag: string;
-  fastpool_pct: number;
-  fastpool_used: string;
-  fastpool_total: string;
-  fastpool_health: string;
-  fastpool_frag: string;
-  load1: string;
-  load5: string;
-  load15: string;
-  load_pct: number;
-  ncpus: number;
-  mem_pct: number;
-  uptime_d: string;
-  cpu_w: string;
-  cpu_w_avg: string;
-  internet: string;
-  updated: string;
-}
+export type { NasData };
 
 async function fetchData(): Promise<NasData> {
   if (config.fixtureData) {
     return JSON.parse(readFileSync(fixturePath, "utf-8"));
   }
+  if (config.influxUrl) {
+    return fetchNasMetrics(config);
+  }
+  // Legacy fallback while migrating off the standalone collector daemon.
   const res = await fetch(config.collectorUrl, { signal: AbortSignal.timeout(2000) });
   if (!res.ok) {
     throw new Error(`collector fetch failed: ${res.status} ${res.statusText}`);

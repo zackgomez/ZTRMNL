@@ -23,9 +23,10 @@ src/routes/display.ts
   2. build a RenderContext (panel dims + device identity from the sqlite
      row, an injected clock, request.log, and an html() helper) and call
      resolveScreen(device.screen).render(ctx)  -- ON DEMAND, 3s timeout
-       screens/nas.ts: fetch collectorUrl fresh -> interpolate into HTML
-       string -> ctx.html() -> render.ts: satori-html -> satori -> resvg
-       -> sharp
+       screens/nas.ts: query InfluxDB fresh (src/sources/nasMetrics.ts,
+       same Flux queries as the retired Python collector) -> interpolate
+       into HTML string -> ctx.html() -> render.ts: satori-html -> satori
+       -> resvg -> sharp
   3. success: write PNG to data/uploads/<sha256[:12]>.png, remember as
      "last-good"
      failure: fall back to serving the last-good PNG (device never sees
@@ -171,11 +172,42 @@ Config: copy `config.example.json` (auto-regenerated from defaults on every
 boot) to `config.json` and edit. Notable fields: `port` defaults to **2400**
 (not 2300 -- production Terminus owns 2300 today; only swap ports/DNS
 during the planned migration window). `fixtureData: true` makes the `nas`
-screen read `reference/nas.json` instead of hitting `collectorUrl` --
-useful if the NAS collector (`192.168.1.43:8088`) is unreachable.
+screen read `reference/nas.json` instead of querying InfluxDB -- useful if
+the NAS's Influx instance (`192.168.1.49:8086`) is unreachable.
 `authMode` (`off`/`warn`/`enforce`, default `warn`) and `allowNewDevices`
 (default `true`) control the device auth described under **Devices &
 auth**. The device registry is a SQLite file at `data/ztrmnl.db`.
+
+### nas screen data source
+
+`src/screens/nas.ts` fetches its data in priority order:
+
+1. `fixtureData: true` -- reads the static `reference/nas.json` fixture.
+2. `influxUrl` set (non-empty) -- `src/sources/nasMetrics.ts` queries
+   InfluxDB directly over Flux (`POST {influxUrl}/api/v2/query?org={influxOrg}`,
+   `Authorization: Token {influxToken}`), running the same queries the
+   retired `trmnl-collector` Python daemon used against the `metrics`
+   bucket (host tag `nas`): zpool health/capacity/fragmentation for
+   `tank`/`fastpool`, system load/cpu-count/uptime, `cpu_power` gauge +
+   1h mean, `mem` used-percent, plus a local TCP-connect check against
+   `1.1.1.1:443`/`8.8.8.8:53` for the `internet` field. The independent
+   Flux queries and the internet check run concurrently.
+3. Otherwise -- **legacy fallback**: fetches the flat JSON blob from
+   `collectorUrl` (the standalone Python collector, if still running).
+   Kept only for the transition; `influxUrl` is the intended path going
+   forward and `collectorUrl` is deprecated in `src/config.ts`.
+
+Config fields for the Influx path:
+
+- `influxUrl` -- Influx base URL, e.g. `http://192.168.1.49:8086`. Empty
+  string (the default) disables this path.
+- `influxOrg` -- Influx org name, e.g. `zoumez`.
+- `influxToken` -- **read-only** API token scoped to the `metrics` bucket.
+
+**This repo is public.** None of these three fields ever have a real
+value in `config.example.json` or anywhere else tracked by git -- the
+token (and URL/org, treated the same way for caution) live only in the
+gitignored local `config.json`.
 
 `pnpm build && pnpm start` compiles to `dist/` and runs the compiled
 server.

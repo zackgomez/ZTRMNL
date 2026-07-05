@@ -18,7 +18,17 @@ export interface Config {
   apiKey: string;
   /** friendly_id returned from /api/setup. */
   friendlyId: string;
-  /** NAS collector endpoint polled fresh on every render. */
+  /** Influx base URL (e.g. http://192.168.1.49:8086) for the nas screen's
+   * direct Flux queries. Empty string disables it (falls back to collectorUrl). */
+  influxUrl: string;
+  /** Influx org name (e.g. "zoumez"). */
+  influxOrg: string;
+  /** Read-only Influx API token, scoped to the metrics bucket. NEVER commit
+   * a real value here -- this repo is public. Lives only in the gitignored
+   * local config.json. */
+  influxToken: string;
+  /** @deprecated NAS collector endpoint, kept as a fallback while migrating
+   * the nas screen to query InfluxDB directly via influxUrl/influxOrg/influxToken. */
   collectorUrl: string;
   /** Directory (relative to repo root, or absolute) for uploads/logs/state. */
   dataDir: string;
@@ -44,6 +54,9 @@ export const defaultConfig: Config = {
   deviceMac: "94:A9:90:8F:48:D4",
   apiKey: "ztrmnl-dev-key",
   friendlyId: "ZTRMNL",
+  influxUrl: "",
+  influxOrg: "",
+  influxToken: "",
   collectorUrl: "http://192.168.1.43:8088/nas.json",
   dataDir: "data",
   activeScreen: "nas",
